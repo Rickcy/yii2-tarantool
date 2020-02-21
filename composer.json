@@ -1,0 +1,42 @@
+{
+    "name": "marvel/yii2-tarantool",
+    "description": "Extension for Tarantool's connection in the Yii2 application.",
+    "type": "yii2-extension",
+
+    "keywords": [
+        "yii2",
+        "extension",
+        "tarantool",
+        "yii2-tarantool",
+        "db",
+        "cache",
+        "yii2-cache",
+        "yii2-db"
+    ],
+    "require": {
+        "php": "^7.0",
+        "yiisoft/yii2": "~2.0",
+        "tarantool/client": "0.6.*"
+
+    },
+    "require-dev": {
+        "phpunit/phpunit": "8.5.*"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Evgeniy Kudenko",
+            "email": "kuden.and.ko@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "rickcy\\tarantool\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "rickcy\\tarantool\\tests\\": "tests/"
+        }
+    }
+}
