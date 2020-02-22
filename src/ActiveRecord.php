@@ -6,10 +6,12 @@ namespace rickcy\tarantool;
 
 use InvalidArgumentException;
 use ReflectionClass;
+use ReflectionException;
 use Yii;
 use yii\base\InvalidConfigException;
 use yii\db\ActiveQueryInterface;
 use yii\db\BaseActiveRecord;
+use yii\db\Exception;
 use yii\db\Query;
 use yii\helpers\ArrayHelper;
 use yii\helpers\Inflector;
@@ -54,7 +56,7 @@ abstract class ActiveRecord extends BaseActiveRecord
      * @return \rickcy\tarantool\ActiveQuery the newly created [[ActiveQuery]] instance
      * @throws \Exception
      */
-    public static function findBySql($sql, $params = []) : ActiveQuery
+    public static function findBySql($sql, $params = []): ActiveQuery
     {
         $query = static::find();
         $query->sql = $sql;
@@ -67,7 +69,7 @@ abstract class ActiveRecord extends BaseActiveRecord
      * @return \rickcy\tarantool\ActiveQuery the newly created [[ActiveQuery]] instance.
      * @throws \Exception
      */
-    public static function find() : ActiveQueryInterface
+    public static function find(): ActiveQueryInterface
     {
         return Yii::createObject(ActiveQuery::class, [static::class]);
     }
@@ -78,13 +80,33 @@ abstract class ActiveRecord extends BaseActiveRecord
      */
     public static function populateRecord($record, $row)
     {
-        $columns = $record->attributes();
+        $columns = array_flip($record->attributes());
         foreach ($row as $name => $value) {
             if (isset($columns[$name])) {
                 $row[$name] = $value;
             }
         }
-        parent::populateRecord($record, $row);
+
+        $columns = array_flip(array_merge($record->attributes(), ['id']));
+        foreach ($row as $name => $value) {
+            if (isset($columns[$name])) {
+                $record->_attributes[$name] = $value;
+            } elseif ($record->canSetProperty($name)) {
+                $record->$name = $value;
+            }
+        }
+        $record->_oldAttributes = $record->_attributes;
+        $record->_related = [];
+        $record->_relationsDependencies = [];
+    }
+
+    /**
+     * Returns a value indicating whether the current record is new.
+     * @return bool whether the record is new and should be inserted when calling [[save()]].
+     */
+    public function getIsNewRecord()
+    {
+        return $this->_oldAttributes === null;
     }
 
     /**
@@ -97,7 +119,7 @@ abstract class ActiveRecord extends BaseActiveRecord
      * @throws \Exception
      * @internal
      */
-    protected static function findByCondition($condition) : ActiveQueryInterface
+    protected static function findByCondition($condition): ActiveQueryInterface
     {
         $query = static::find();
 
@@ -133,7 +155,7 @@ abstract class ActiveRecord extends BaseActiveRecord
      *
      * @return string[] the primary keys of the associated database table.
      */
-    public static function primaryKey() : array
+    public static function primaryKey(): array
     {
         return ['id'];
     }
@@ -147,9 +169,9 @@ abstract class ActiveRecord extends BaseActiveRecord
      *
      * @return string the table name
      */
-    public static function tableName() : string
+    public static function tableName(): string
     {
-        return  Inflector::camel2id(StringHelper::basename(static::class), '_');
+        return Inflector::camel2id(StringHelper::basename(static::class), '_');
     }
 
     /**
@@ -162,7 +184,7 @@ abstract class ActiveRecord extends BaseActiveRecord
      * @since 2.0.17
      * @internal
      */
-    protected static function filterValidAliases(Query $query) : array
+    protected static function filterValidAliases(Query $query): array
     {
         $tables = $query->getTablesUsedInFrom();
 
@@ -185,7 +207,7 @@ abstract class ActiveRecord extends BaseActiveRecord
      * @since 2.0.15
      * @internal
      */
-    protected static function filterCondition(array $condition, array $aliases = []) : array
+    protected static function filterCondition(array $condition, array $aliases = []): array
     {
         $result = [];
         $db = static::getDb();
@@ -225,22 +247,11 @@ abstract class ActiveRecord extends BaseActiveRecord
      * @since 2.0.17
      * @internal
      */
-    protected static function filterValidColumnNames($db, array $aliases) : array
+    protected static function filterValidColumnNames($db, array $aliases): array
     {
         $columnNames = [];
-        $tableName = static::tableName();
-        $quotedTableName = $db->quoteTableName($tableName);
-
         foreach (static::getColumns() as $columnName) {
             $columnNames[] = $columnName;
-            $columnNames[] = $db->quoteColumnName($columnName);
-            $columnNames[] = "$tableName.$columnName";
-            $columnNames[] = $db->quoteSql("$quotedTableName.[[$columnName]]");
-            foreach ($aliases as $tableAlias) {
-                $columnNames[] = "$tableAlias.$columnName";
-                $quotedTableAlias = $db->quoteTableName($tableAlias);
-                $columnNames[] = $db->quoteSql("$quotedTableAlias.[[$columnName]]");
-            }
         }
 
         return $columnNames;
@@ -282,7 +293,7 @@ abstract class ActiveRecord extends BaseActiveRecord
      * @return bool whether the attributes are valid and the record is inserted successfully.
      * @throws \Exception|\Throwable in case insert failed.
      */
-    public function insert($runValidation = true, $attributes = null) : bool
+    public function insert($runValidation = true, $attributes = null): bool
     {
         if ($runValidation && !$this->validate($attributes)) {
             Yii::info('Model not inserted due to validation error.', __METHOD__);
@@ -294,13 +305,13 @@ abstract class ActiveRecord extends BaseActiveRecord
             return false;
         }
 
-        $values = $this->values();
-        self::getDb()->getSpace(strtoupper(static::tableName()))->insert(array_values($values));
+        $values = $this->getDirtyAttributes();
+        $rows = self::getDb()->getSpace(strtoupper(static::tableName()))->insert(array_values($values));
 
 
-        foreach ($values as $name => $value) {
-            $this->setAttribute($name, $value);
-            $values[$name] = $value;
+        foreach ($this->attributes() as $key => $name) {
+            $this->setAttribute($name, $rows[0][$key]);
+            $values[$name] = $rows[0][$key];
         }
 
         $changedAttributes = array_fill_keys(array_keys($values), null);
@@ -315,13 +326,13 @@ abstract class ActiveRecord extends BaseActiveRecord
 
     /**
      * @return array
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
-    public function values() : array
+    public function values(): array
     {
         $class = new ReflectionClass($this);
         $names = [];
-        foreach ($class->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
+        foreach ($class->getProperties(\ReflectionProperty::IS_PUBLIC | \ReflectionProperty::IS_PRIVATE) as $property) {
             if (!$property->isStatic()) {
                 $names[$property->getName()] = $this->{$property->getName()};
             }
@@ -390,8 +401,9 @@ abstract class ActiveRecord extends BaseActiveRecord
         $condition = $this->getOldPrimaryKey(true);
         // We do not check the return value of updateAll() because it's possible
         // that the UPDATE statement doesn't change anything and thus returns 0.
+        $params = [];
         $sql = self::getDb()->getQueryBuilder()->update(static::tableName(), $values, $condition, $params);
-        $rows = self::getDb()->createCommand($sql)->execute();
+        self::getDb()->createCommand($sql, $params)->execute();
 
         $changedAttributes = [];
         foreach ($values as $name => $value) {
@@ -400,8 +412,60 @@ abstract class ActiveRecord extends BaseActiveRecord
         }
         $this->afterSave(false, $changedAttributes);
 
-        return $rows;
+        return true;
 
+    }
+
+
+    public function getOldPrimaryKey($asArray = false)
+    {
+        $keys = $this->primaryKey();
+        if (empty($keys)) {
+            throw new Exception(get_class($this) . ' does not have a primary key. You should either define a primary key for the corresponding table or override the primaryKey() method.');
+        }
+        if (!$asArray && count($keys) === 1) {
+            return $this->_oldAttributes[$keys[0]] ?? null;
+        }
+
+        $values = [];
+        foreach ($keys as $name) {
+            $values[$name] = $this->_oldAttributes[$name] ?? null;
+        }
+
+        return $values;
+    }
+
+    /**
+     * Returns the attribute values that have been modified since they are loaded or saved most recently.
+     *
+     * The comparison of new and old values is made for identical values using `===`.
+     *
+     * @param string[]|null $names the names of the attributes whose values may be returned if they are
+     * changed recently. If null, [[attributes()]] will be used.
+     * @return array the changed attribute values (name-value pairs)
+     */
+    public function getDirtyAttributes($names = null)
+    {
+        if ($names === null) {
+            $names = $this->attributes();
+        }
+        $names = array_flip($names);
+        $attributes = [];
+        if ($this->_oldAttributes === null) {
+            foreach ($this->values() as $name => $value) {
+                if (isset($names[$name])) {
+                    $attributes[$name] = $value;
+                }
+            }
+        } else {
+            foreach ($this->getAttributes() as $name => $value) {
+                if (isset($names[$name]) && 'id' !== $name && (!array_key_exists($name, $this->_oldAttributes) || $value !== $this->_oldAttributes[$name])) {
+                    $attributes[$name] = $value;
+                }
+            }
+        }
+
+        return $attributes;
     }
 
 
@@ -442,7 +506,7 @@ abstract class ActiveRecord extends BaseActiveRecord
      *
      * @return bool whether the two active records refer to the same row in the same database table.
      */
-    public function equals($record) : bool
+    public function equals($record): bool
     {
         if ($this->isNewRecord || $record->isNewRecord) {
             return false;

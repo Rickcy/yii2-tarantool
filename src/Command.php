@@ -186,7 +186,7 @@ class Command extends Component
     }
 
     /**
-     * @return \Tarantool\Client\SqlQueryResult
+     * @return SqlQueryResult
      */
     public function query() : SqlQueryResult
     {
@@ -195,7 +195,16 @@ class Command extends Component
     }
 
     /**
-     * @return \Tarantool\Client\SqlUpdateResult
+     * @return SqlQueryResult
+     */
+    public function queryOne() : SqlQueryResult
+    {
+        $this->db->open();
+        return $this->executeQuery($this->getRawSql());
+    }
+
+    /**
+     * @return SqlUpdateResult
      */
     public function execute() : SqlUpdateResult
     {

@@ -4,6 +4,7 @@
 namespace rickcy\tarantool;
 
 
+use Exception;
 use Tarantool\Client\Connection\StreamConnection;
 use Tarantool\Client\Dsn;
 use Tarantool\Client\Exception\RequestFailed;
@@ -26,9 +27,10 @@ use yii\db\sqlite\Schema;
 
 
 /**
- * @property \yii\db\sqlite\Schema $schema
- * @property \rickcy\tarantool\QueryBuilder $queryBuilder
- */class Connection extends Component
+ * @property Schema $schema
+ * @property QueryBuilder $queryBuilder
+ */
+class Connection extends Component
 {
 
     /**
@@ -61,8 +63,8 @@ use yii\db\sqlite\Schema;
 
 
     public $tablePrefix = '';
-    private $tableQuoteCharacter;
-    private $columnQuoteCharacter;
+    private $tableQuoteCharacter = '"';
+    private $columnQuoteCharacter = '"';
     private $_quotedColumnNames;
     private $spaces;
 
@@ -80,9 +82,9 @@ use yii\db\sqlite\Schema;
      * @param array $params the parameters to be bound to the SQL statement
      *
      * @return Command the DB command
-     * @throws \Exception
+     * @throws Exception
      */
-    public function createCommand($sql = null, $params = []) : Command
+    public function createCommand($sql = null, $params = []): Command
     {
 
         $config = ['class' => Command::class];
@@ -102,18 +104,18 @@ use yii\db\sqlite\Schema;
     /**
      * @return bool
      */
-    public function isActive() : bool
+    public function isActive(): bool
     {
         return $this->isActive;
     }
 
     /**
-     * @param \Tarantool\Client\Middleware\Middleware $middleware
-     * @param \Tarantool\Client\Middleware\Middleware ...$middlewares
+     * @param Middleware $middleware
+     * @param Middleware ...$middlewares
      *
      * @return $this
      */
-    public function withMiddleware(Middleware $middleware, Middleware ...$middlewares) : self
+    public function withMiddleware(Middleware $middleware, Middleware ...$middlewares): self
     {
         $new = clone $this;
         $new->handler = MiddlewareHandler::create($new->handler, $middleware, ...$middlewares);
@@ -121,7 +123,7 @@ use yii\db\sqlite\Schema;
         return $new;
     }
 
-    public function getHandler() : Handler
+    public function getHandler(): Handler
     {
         return $this->handler;
     }
@@ -131,7 +133,7 @@ use yii\db\sqlite\Schema;
      *
      * @return string
      */
-    public function quoteValue($field) : string
+    public function quoteValue($field): string
     {
         return "'" . str_replace('`', '"', $field) . "'";
     }
@@ -152,7 +154,7 @@ use yii\db\sqlite\Schema;
      *
      * @return string the quoted SQL
      */
-    public function quoteSql($sql) : string
+    public function quoteSql($sql): string
     {
         return preg_replace_callback(
             '/({\\{(%?[\w\-\. ]+%?)\\}\\}|\\[\\[([\w\-\. ]+)\\]\\])/',
@@ -177,7 +179,7 @@ use yii\db\sqlite\Schema;
      *
      * @return string the properly quoted column name
      */
-    public function quoteColumnName($name) : string
+    public function quoteColumnName($name): string
     {
         if (isset($this->_quotedColumnNames[$name])) {
             return $this->_quotedColumnNames[$name];
@@ -197,7 +199,7 @@ use yii\db\sqlite\Schema;
      * @return string the properly quoted column name
      * @see quoteSimpleColumnName()
      */
-    public function quoteColumnNameSchema($name) : string
+    public function quoteColumnNameSchema($name): string
     {
         if (strpos($name, '(') !== false || strpos($name, '[[') !== false) {
             return $name;
@@ -226,7 +228,7 @@ use yii\db\sqlite\Schema;
      * @return string the properly quoted table name
      * @see quoteSimpleTableName()
      */
-    public function quoteTableName($name) : string
+    public function quoteTableName($name): string
     {
         if (strpos($name, '(') !== false || strpos($name, '{{') !== false) {
             return $name;
@@ -251,7 +253,7 @@ use yii\db\sqlite\Schema;
      *
      * @return string the properly quoted table name
      */
-    public function quoteSimpleTableName($name) : string
+    public function quoteSimpleTableName($name): string
     {
         if (is_string($this->tableQuoteCharacter)) {
             $startingCharacter = $endingCharacter = $this->tableQuoteCharacter;
@@ -259,7 +261,7 @@ use yii\db\sqlite\Schema;
             list($startingCharacter, $endingCharacter) = $this->tableQuoteCharacter;
         }
 
-        return strpos($name, $startingCharacter) !== false ? $name : $startingCharacter . $name . $endingCharacter;
+        return strpos($name, $startingCharacter) !== false ? strtoupper($name) : $startingCharacter . strtoupper($name) . $endingCharacter;
     }
 
     /**
@@ -270,7 +272,7 @@ use yii\db\sqlite\Schema;
      * @return array
      * @since 2.0.22
      */
-    protected function getTableNameParts($name) : array
+    protected function getTableNameParts($name): array
     {
         return explode('.', $name);
     }
@@ -284,7 +286,7 @@ use yii\db\sqlite\Schema;
      *
      * @return string the properly quoted column name
      */
-    public function quoteSimpleColumnName($name) : string
+    public function quoteSimpleColumnName($name): string
     {
         if (is_string($this->tableQuoteCharacter)) {
             $startingCharacter = $endingCharacter = $this->columnQuoteCharacter;
@@ -296,9 +298,9 @@ use yii\db\sqlite\Schema;
     }
 
     /**
-     * @return \rickcy\tarantool\QueryBuilder
+     * @return QueryBuilder
      */
-    public function getQueryBuilder() : QueryBuilder
+    public function getQueryBuilder(): QueryBuilder
     {
         $this->open();
         return new QueryBuilder($this->conn);
@@ -318,15 +320,14 @@ use yii\db\sqlite\Schema;
     }
 
 
-
-    public function evaluate(string $expr, ...$args) : array
+    public function evaluate(string $expr, ...$args): array
     {
         $request = new EvaluateRequest($expr, $args);
 
         return $this->handler->handle($request)->getBodyField(Keys::DATA);
     }
 
-    public function call(string $funcName, ...$args) : array
+    public function call(string $funcName, ...$args): array
     {
         $request = new CallRequest($funcName, $args);
 
@@ -336,9 +337,9 @@ use yii\db\sqlite\Schema;
     /**
      * @param string $spaceName
      *
-     * @return \Tarantool\Client\Schema\Space
+     * @return Space
      */
-    public function getSpace(string $spaceName) : Space
+    public function getSpace(string $spaceName): Space
     {
         $this->open();
         if (isset($this->spaces[$spaceName])) {
@@ -351,12 +352,12 @@ use yii\db\sqlite\Schema;
     }
 
     /**
-     * @return \rickcy\tarantool\Connection
+     * @return object|Connection
      */
-    public function open() : self
+    public function open()
     {
         if ($this->isActive) {
-            return $this->conn;
+            return $this->conn ?? Yii::$container->get('tarantool')->open();
         }
         $dsn = Dsn::parse($this->dsn);
 
@@ -392,7 +393,13 @@ use yii\db\sqlite\Schema;
         $this->trigger(self::EVENT_AFTER_OPEN);
         $this->isActive = true;
 
-        return $this->conn = new self($this->handler);
+        /** @var Connection conn */
+        return $this->conn = Yii::createObject([
+            'class' => static::class,
+            'dsn' => 'tcp://175.25.125.7:3301',
+            'username' => 'tester',
+            'password' => 'test',
+        ]);
 
     }
 
@@ -401,7 +408,7 @@ use yii\db\sqlite\Schema;
      *
      * @return int
      */
-    private function getSpaceIdByName(string $spaceName) : int
+    private function getSpaceIdByName(string $spaceName): int
     {
         $schema = $this->getSpaceById(Space::VSPACE_ID);
         $data = $schema->select(Criteria::key([$spaceName])->andIndex(Space::VSPACE_NAME_INDEX));
@@ -413,7 +420,7 @@ use yii\db\sqlite\Schema;
         return $data[0][0];
     }
 
-    public function getSpaceById(int $spaceId) : Space
+    public function getSpaceById(int $spaceId): Space
     {
         if (isset($this->spaces[$spaceId])) {
             return $this->spaces[$spaceId];

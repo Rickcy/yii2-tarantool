@@ -4,6 +4,7 @@
 namespace rickcy\tarantool;
 
 
+use Tarantool\Client\SqlQueryResult;
 use yii\base\InvalidConfigException;
 use yii\db\ActiveQueryInterface;
 use yii\db\ActiveQueryTrait;
@@ -250,9 +251,10 @@ class ActiveQuery extends Query implements ActiveQueryInterface
      */
     public function one($db = null)
     {
+        /** @var SqlQueryResult $row */
         $row = parent::one($db);
-        if ($row !== false) {
-            $models = $this->populate([$row]);
+        if ($row->getFirst() !== null) {
+            $models = $this->populate([$row->getFirst()]);
             return reset($models) ?: null;
         }
 
