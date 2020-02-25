@@ -87,7 +87,7 @@ abstract class ActiveRecord extends BaseActiveRecord
             }
         }
 
-        $columns = array_flip(array_merge($record->attributes(), ['id']));
+        $columns = array_flip(array_merge($record->attributes(), static::primaryKey()));
         foreach ($row as $name => $value) {
             if (isset($columns[$name])) {
                 $record->_attributes[$name] = $value;
@@ -437,14 +437,15 @@ abstract class ActiveRecord extends BaseActiveRecord
 
     /**
      * Returns the attribute values that have been modified since they are loaded or saved most recently.
-     *
      * The comparison of new and old values is made for identical values using `===`.
      *
      * @param string[]|null $names the names of the attributes whose values may be returned if they are
      * changed recently. If null, [[attributes()]] will be used.
+     *
      * @return array the changed attribute values (name-value pairs)
+     * @throws \Exception
      */
-    public function getDirtyAttributes($names = null)
+    public function getDirtyAttributes($names = null) : array
     {
         if ($names === null) {
             $names = $this->attributes();
@@ -459,7 +460,7 @@ abstract class ActiveRecord extends BaseActiveRecord
             }
         } else {
             foreach ($this->getAttributes() as $name => $value) {
-                if (isset($names[$name]) && 'id' !== $name && (!array_key_exists($name, $this->_oldAttributes) || $value !== $this->_oldAttributes[$name])) {
+                if (isset($names[$name]) && self::primaryKey()[0] !== $name && (!array_key_exists($name, $this->_oldAttributes) || $value !== $this->_oldAttributes[$name])) {
                     $attributes[$name] = $value;
                 }
             }

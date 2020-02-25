@@ -23,12 +23,18 @@ class User extends ActiveRecord
     }
 
 
-    public static function getColumns()
+    /**
+     * @return array
+     */
+    public static function getColumns() : array
     {
         return ['id', 'guid', 'email', 'name', 'surname', 'middle_name'];
     }
 
-    public function attributes()
+    /**
+     * @return array
+     */
+    public function attributes() : array
     {
         return self::getColumns();
     }

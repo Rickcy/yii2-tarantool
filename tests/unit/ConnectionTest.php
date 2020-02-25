@@ -17,15 +17,15 @@ class ConnectionTest extends TestCase
     public function testConnection()
     {
         $connection = new Connection();
-        $connection->dsn = 'tcp://175.25.125.7:3301';
+        $connection->dsn = 'tcp://185.45.0.100:3301';
         $connection->username = 'tester';
         $connection->password = 'test';
         $connection->socket_timeout = 20000;
         $connection->connect_timeout = 20000;
         $connection->persistent = true;
 
-        $user = $connection->getSpace('USERS')->select(Criteria::key([21]))[0];
-//        $connection->createCommand('CREATE TABLE users ("id" INTEGER PRIMARY KEY AUTOINCREMENT,"guid" VARCHAR(255), "email" VARCHAR(255),"name" VARCHAR(255),"surname" VARCHAR(255),"middle_name" VARCHAR(255))')->execute();
+        //$user = $connection->getSpace('USERS')->select(Criteria::key([21]))[0];
+        $connection->createCommand('CREATE TABLE users ("id" INTEGER PRIMARY KEY AUTOINCREMENT,"guid" VARCHAR(255), "email" VARCHAR(255),"name" VARCHAR(255),"surname" VARCHAR(255),"middle_name" VARCHAR(255))')->execute();
 
         $this->assertTrue(true);
 
@@ -41,7 +41,7 @@ class ConnectionTest extends TestCase
             'tarantool' =>
                 [
                     'class' => Connection::class,
-                    'dsn' => 'tcp://175.25.125.7:3301',
+                    'dsn' => 'tcp://185.45.0.100:3301',
                     'username' => 'tester',
                     'password' => 'test',
                     'persistent' => true,
@@ -50,7 +50,7 @@ class ConnectionTest extends TestCase
 
         $user = new User();
         $user->guid = '1fb4154db-76b2-11e7-bc8d-901b0ebda105';
-        $user->email = '1kuden.and.ko@gmail.com';
+        $user->email = 'kuden.and.ko@gmail.com';
         $user->name = 'Евгений';
         $user->surname = 'Куденко';
         $user->middle_name = 'Сергеевич';
@@ -68,14 +68,14 @@ class ConnectionTest extends TestCase
             'tarantool' =>
                 [
                     'class' => Connection::class,
-                    'dsn' => 'tcp://175.25.125.7:3301',
+                    'dsn' => 'tcp://185.45.0.100:3301',
                     'username' => 'tester',
                     'password' => 'test',
                     'persistent' => true,
                 ],
         ]);
 
-        $user = User::findOne(['id' => 21]);
+        $user = User::findOne(['email' => 'kuden.and.ko@gmail.com']);
         $user->guid = '1fb4154db-76b2-11e7-bc8d-901b0ebda105';
         $user->email = '1ku-den@mail.ru';
         $user->name = 'Евгений';
