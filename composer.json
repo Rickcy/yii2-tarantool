@@ -1,5 +1,5 @@
 {
-    "name": "marvel/yii2-tarantool",
+    "name": "rickcy/yii2-tarantool",
     "description": "Extension for Tarantool's connection in the Yii2 application.",
     "type": "yii2-extension",
 
