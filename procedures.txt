@@ -1,0 +1,40 @@
+create function ex() returns trigger
+    language plpgsql
+as
+$$
+BEGIN
+    IF (TG_OP = 'DELETE') THEN
+        RETURN OLD;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        RETURN NEW;
+    ELSIF (TG_OP = 'INSERT') THEN
+        INSERT into texts values (TG_LEVEL);
+        RETURN NEW;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
+
+
+create function tarantool_insert(tablename text, tuple text[]) returns void
+    language plpython3u
+as
+$$
+import tarantool
+conn = tarantool.connect('185.45.0.100', 3301)
+space = conn.space(tablename.upper())
+space.insert(tuple)
+$$;
+
+
+create function tarantool_delete(tablename text, id integer) returns boolean
+    language plpython3u
+as
+$$
+import tarantool
+conn = tarantool.connect('185.45.0.100', 3301)
+space = conn.space(tablename.upper())
+isDelete = space.delete(id)
+return True
+$$;
