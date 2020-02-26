@@ -22,7 +22,13 @@ create function tarantool_insert(tablename text, tuple text[]) returns void
 as
 $$
 import tarantool
-conn = tarantool.connect('185.45.0.100', 3301)
+import os
+from dotenv import load_dotenv
+env_path = os.getenv("PROJECT_PATH") + '.env'
+load_dotenv(dotenv_path=env_path)
+host = os.getenv("TARANTOOL_HOST")
+port = os.getenv("TARANTOOL_PORT")
+conn = tarantool.connect(host, port)
 space = conn.space(tablename.upper())
 space.insert(tuple)
 $$;
@@ -33,7 +39,13 @@ create function tarantool_delete(tablename text, id integer) returns boolean
 as
 $$
 import tarantool
-conn = tarantool.connect('185.45.0.100', 3301)
+import os
+from dotenv import load_dotenv
+env_path = os.getenv("PROJECT_PATH") + '.env'
+load_dotenv(dotenv_path=env_path)
+host = os.getenv("TARANTOOL_HOST")
+port = os.getenv("TARANTOOL_PORT")
+conn = tarantool.connect(host, port)
 space = conn.space(tablename.upper())
 isDelete = space.delete(id)
 return True
