@@ -23,6 +23,7 @@ use Tarantool\Client\Schema\Criteria;
 use Tarantool\Client\Schema\Space;
 use Yii;
 use yii\base\Component;
+use yii\base\InvalidConfigException;
 use yii\db\sqlite\Schema;
 
 
@@ -96,7 +97,7 @@ class Connection extends Component
         /** @var Command $command */
         $command = Yii::createObject($config);
 
-        return $command->bindValues($params);
+                                return $command->bindValues($params);
 
     }
 
@@ -306,6 +307,10 @@ class Connection extends Component
         return new QueryBuilder($this->conn);
     }
 
+    /**
+     * @return object
+     * @throws InvalidConfigException
+     */
     public function getSchema()
     {
         if ($this->_schema !== null) {
@@ -322,6 +327,7 @@ class Connection extends Component
 
     public function evaluate(string $expr, ...$args): array
     {
+        $this->open();
         $request = new EvaluateRequest($expr, $args);
 
         return $this->handler->handle($request)->getBodyField(Keys::DATA);
@@ -329,6 +335,7 @@ class Connection extends Component
 
     public function call(string $funcName, ...$args): array
     {
+        $this->open();
         $request = new CallRequest($funcName, $args);
 
         return $this->handler->handle($request)->getBodyField(Keys::DATA);
@@ -353,6 +360,8 @@ class Connection extends Component
 
     /**
      * @return object|Connection
+     * @throws InvalidConfigException
+     * @throws Exception
      */
     public function open()
     {

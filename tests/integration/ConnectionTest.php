@@ -1,39 +1,53 @@
 <?php
 
 
-namespace rickcy\tarantool\tests\unit;
+namespace rickcy\tarantool\tests\integration;
 
 
+use Exception;
 use PHPUnit\Framework\TestCase;
 use rickcy\tarantool\Connection;
 use rickcy\tarantool\tests\User;
-use Tarantool\Client\Schema\Criteria;
 
 class ConnectionTest extends TestCase
 {
     /**
-     * @throws \Exception
+     * @throws Exception
      */
-    public function testConnection()
+    public function testConnection(): void
     {
         $connection = new Connection();
-        $connection->dsn = 'tcp://185.45.0.100:3301';
+        $connection->dsn = 'tcp://175.25.125.7:3301';
         $connection->username = 'tester';
         $connection->password = 'test';
         $connection->socket_timeout = 20000;
         $connection->connect_timeout = 20000;
         $connection->persistent = true;
 
-        //$user = $connection->getSpace('USERS')->select(Criteria::key([21]))[0];
-        $connection->createCommand('CREATE TABLE users ("id" INTEGER PRIMARY KEY AUTOINCREMENT,"guid" VARCHAR(255), "email" VARCHAR(255),"name" VARCHAR(255),"surname" VARCHAR(255),"middle_name" VARCHAR(255))')->execute();
+//        $connection->evaluate(<<<LUA
+//        if box.space[...] then box.space[...]:drop() end
+//        space = box.schema.space.create(...)
+//        space:format({
+//        {name='id',type='string'},
+//        {name='owner_id',type='string'},
+//        {name='type',type='string'},
+//        {name='status',type='string'},
+//        {name='status_history',type='string'},
+//        {name='params',type='string'}
+//        })
+//         space:create_index('primary', {type = 'tree', parts = {1, 'string'}})
+//         space:create_index('secondary', {type = 'tree', parts = {2, 'string'}})
+//        LUA
+//            , 'announcements');
 
+        $announcements = $connection->createCommand('SELECT * FROM "announcements"')->query();
         $this->assertTrue(true);
 
 
     }
 
 
-    public function testActiveRecordInsert()
+    public function testActiveRecordInsert(): void
     {
 
         $container = \Yii::$container;
