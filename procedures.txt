@@ -1,20 +1,65 @@
-create function ex() returns trigger
+create or replace function ex() returns trigger
     language plpgsql
 as
 $$
+DECLARE
+    value  text;
+    V1      text;
+    V2      text;
+    K1      text;
+    K2      text;
+    arr1   text[];
+    arr2   text[];
+    result text[];
 BEGIN
     IF (TG_OP = 'DELETE') THEN
         RETURN OLD;
     ELSIF (TG_OP = 'UPDATE') THEN
+        value := row_to_json(new.*);
+        FOR K1,V1 IN SELECT * FROM json_each_text(value::json)
+            LOOP
+                arr1 := array_append(arr1, V1);
+            END LOOP;
+
+        value := row_to_json(old.*);
+        FOR K2,V2 IN SELECT * FROM json_each_text(value::json)
+            LOOP
+                arr2 := array_append(arr2, V2);
+            END LOOP;
+
+        result := array_diff(arr1, arr2);
+
+        RAISE NOTICE '%', result;
         RETURN NEW;
     ELSIF (TG_OP = 'INSERT') THEN
-        INSERT into texts values (TG_LEVEL);
+        INSERT into texts values (NEW);
         RETURN NEW;
     END IF;
     RETURN NULL;
 END;
 $$;
 
+
+CREATE OR REPLACE FUNCTION array_diff(anyarray, anyarray)
+    RETURNS anyarray
+    language sql
+as
+$$
+SELECT ARRAY(
+               SELECT * FROM (SELECT UNNEST($1) as element) t WHERE element not in (SELECT UNNEST($2))
+           );
+$$;
+
+
+
+create function tarantool_update(tablename text, tuple text[]) returns text[]
+    language plpython3u
+as
+$$
+import tarantool
+import os
+return tuple
+$$;
 
 
 create function tarantool_insert(tablename text, tuple text[]) returns void
@@ -31,18 +76,16 @@ port = os.getenv("TARANTOOL_PORT")
 conn = tarantool.connect(host, port)
 space = conn.space(tablename)
 space.insert(tuple)
+conn.close()
 $$;
 
-create function tarantool_delete(tablename text, id text) returns boolean
+create function tarantool_delete(tablename text, id integer) returns boolean
     language plpython3u
 as
 $$
 import tarantool
 import os
 from dotenv import load_dotenv
-import getpass
-username = getpass.getuser()
-print(username)
 env_path = os.getenv("PROJECT_PATH") + '.env'
 load_dotenv(dotenv_path=env_path)
 host = os.getenv("TARANTOOL_HOST")
@@ -50,5 +93,6 @@ port = os.getenv("TARANTOOL_PORT")
 conn = tarantool.connect(host, port)
 space = conn.space(tablename)
 isDelete = space.delete(id)
+conn.close()
 return True
 $$;
