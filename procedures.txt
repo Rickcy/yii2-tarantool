@@ -1,3 +1,6 @@
+Оптимизировать
+Если нет что писать в базу не нужно писать в тарантул
+
 create or replace function execute_tarantool() returns trigger
     language plpgsql
 as
